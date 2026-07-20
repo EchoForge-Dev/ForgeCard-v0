@@ -24,26 +24,32 @@ def main():
         # 提示请先注册 EchoID
         print("请先注册 EchoID")
         return
-
-        # return
-
-    # 从 profile JSON 提取：
+    data = profile["data"]
+    profile_info = data["profile"]
+    tier = data["tierMeta"]
     profile_id = profile.get("profile_id"," ")
-    # display_name
-    display_name = profile.get("display_name"," ")
-        # tier 中文
-    tier = profile.get("tier"," ")
-        # tier role
-    tier_role=profile.get("tier_role"," ")
+    display_name = profile_info["display_name"] or "Unnamed"
+    days = data["daysSinceJoined"]
+    tier_cn = tier["cn"]
+    tier_name = tier["name"]
+    role = tier["role"]
+    tagline = tier["forgeTagline"]
+    narrative = tier["narrative"]
 
-        # tagline
-    tagline = profile.get("tagline"," ")
     # 打印结果
-    print("Display Name:", display_name)
-    print("Profile ID:", profile_id)
-    print("Tier:", tier)
-    print("Tier Role:", tier_role)
-    print("Tagline:", tagline)
+    print("=" * 50)
+    print(" " * 18 + "ForgeCard V0")
+    print("=" * 50)
+
+    print(f"{'Card UID':20}: {uid}")
+    print(f"{'Stake Address':20}: {stake_address}")
+    print(f"{'Display Name':20}: {display_name or 'Unnamed'}")
+    print(f"{'Tier':20}: {tier_name} ({tier_cn})")
+    print(f"{'Role':20}: {role}")
+    print(f"{'Days Since Joined':20}: {days}")
+    print(f"{'Tagline':20}: {tagline}")
+
+    print("=" * 50)
 # if __name__ == "__main__"
 if __name__ == "__main__":
     main()
