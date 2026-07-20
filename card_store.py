@@ -4,7 +4,9 @@ from pathlib import Path
 
 
 # 指定 JSON 数据文件
-DB_FILE = Path("card_store.json")
+BASE_DIR = Path(__file__).resolve().parent
+
+DB_FILE = BASE_DIR / "card_store.json"
 
 # 写一个函数：读取绑定数据
     # 如果文件不存在，返回空字典
@@ -40,11 +42,10 @@ def std_uid(uid):
     # 返回新绑定
 def bind_card(uid, stake_address, display_name):
     uid =std_uid(uid)
-    bindings =read_bindings()
-    with open(DB_FILE,"w",encoding="utf-8")as f:
-        bindings[uid]={"stake_address": stake_address, "display_name": display_name}
-        save_bindings(bindings)
-        return bindings[uid]
+    bindings =read_bindings()  
+    bindings[uid]={"stake_address": stake_address, "display_name": display_name}
+    save_bindings(bindings)
+    return bindings[uid]
 # 写一个函数：查询 UID
     # 标准化 UID
     # 读取数据
@@ -53,5 +54,5 @@ def bind_card(uid, stake_address, display_name):
 def lookup_uid(uid):
     uid=std_uid(uid)
     bindings=read_bindings()
-    return bindings.get(uid,None)
+    return bindings.get(uid)
 
