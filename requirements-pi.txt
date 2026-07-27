@@ -1,0 +1,6 @@
+# Raspberry Pi only -- PN532 hardware drivers for forgecard_kiosk.py.
+# Install in addition to requirements.txt on the Pi itself; these will not
+# install/import correctly on macOS or a generic Linux dev machine.
+# Not needed for `python forgecard_kiosk.py --keyboard`.
+adafruit-blinka
+adafruit-circuitpython-pn532

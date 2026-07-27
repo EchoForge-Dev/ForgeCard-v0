@@ -1,0 +1,3 @@
+# Core deps -- install everywhere (dev laptop and Raspberry Pi).
+# Used by echoid_client.py / forgecard_demo.py to call the EchoID API.
+requests==2.34.2

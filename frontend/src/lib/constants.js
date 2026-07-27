@@ -1,0 +1,2 @@
+export const RESULT_AUTO_RETURN_MS = 8000;
+export const ERROR_AUTO_RETURN_MS = 6000;
