@@ -165,3 +165,11 @@ No backend environment variables — there's no server-side component to the kio
 ## Deploying Frontend Updates
 
 The frontend is a standard Next.js app — deploy it to Vercel like other EchoForge products (see root `DESIGN.md` -> Technical Architecture) and point `forgecard.echoforgellc.tech` at it. Rebuilding the frontend does not require touching the Pi at all, since it talks to the EchoID API directly and has no backend dependency.
+
+**Vercel Root Directory must be `frontend`.** This repo's root holds the Pi-side Python, not the Next.js app — there is no `package.json` at the top level. If Root Directory is left at the repo root, Vercel's framework detection finds nothing, falls back to the "Other" preset, and the build fails with:
+
+```text
+Error: No Output Directory named "public" found after the Build completed.
+```
+
+Fix it in Vercel -> Project -> Settings -> Build and Deployment: set **Root Directory** to `frontend`, confirm **Framework Preset** is `Next.js`, then redeploy. Leave Build Command / Output Directory on their defaults — with the preset correct, Vercel handles `.next` itself. Do not add a root `vercel.json` to work around this; the Root Directory setting is the supported path and keeps the Python and frontend halves cleanly separated.

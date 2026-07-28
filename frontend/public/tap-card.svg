@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420" fill="none" role="img" aria-labelledby="fcTitle fcDesc">
+  <title id="fcTitle">ForgeCard — Tap Card to Begin</title>
+  <desc id="fcDesc">An Echo ID card resting on a circular NFC reader, emitting signal arcs.</desc>
+
+  <defs>
+    <radialGradient id="fcGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.10" />
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.03" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- glass-panel-strong: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.03)) -->
+    <linearGradient id="fcGlass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.03" />
+    </linearGradient>
+
+    <linearGradient id="fcCard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.06" />
+    </linearGradient>
+
+    <linearGradient id="fcScan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0" />
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+
+    <clipPath id="fcReaderClip">
+      <circle cx="320" cy="168" r="86" />
+    </clipPath>
+  </defs>
+
+  <!-- Backdrop -->
+  <rect x="0.5" y="0.5" width="639" height="419" rx="20" fill="#000000" stroke="#1F1F1F" />
+  <circle cx="320" cy="168" r="240" fill="url(#fcGlow)" />
+
+  <!-- Engineering corner markers -->
+  <g stroke="#808080" stroke-opacity="0.3" stroke-width="1" fill="none">
+    <path d="M18 32V18h14" />
+    <path d="M608 18h14v14" />
+    <path d="M622 388v14h-14" />
+    <path d="M32 402H18v-14" />
+  </g>
+
+  <!-- Status line -->
+  <g font-family="'IBM Plex Mono','JetBrains Mono','Courier New',monospace" font-size="9" letter-spacing="1.5">
+    <circle cx="31" cy="33" r="3" fill="#4EDE80">
+      <animate attributeName="opacity" values="1;0.35;1" dur="2s" repeatCount="indefinite" />
+    </circle>
+    <text x="44" y="36.5" fill="#808080">READER ONLINE</text>
+    <text x="608" y="36.5" fill="#808080" text-anchor="end">FORGECARD / V0</text>
+  </g>
+
+  <!-- Reader + card (floats, matching IdleView) -->
+  <g>
+    <animateTransform attributeName="transform" type="translate"
+      values="0 0; 0 -8; 0 0" keyTimes="0;0.5;1"
+      calcMode="spline" keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"
+      dur="4s" repeatCount="indefinite" />
+
+    <!-- tap ripples -->
+    <g fill="none" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.25">
+      <circle cx="320" cy="168" r="94">
+        <animate attributeName="r" values="94;150" dur="3s" begin="0s" repeatCount="indefinite" />
+        <animate attributeName="stroke-opacity" values="0.35;0" dur="3s" begin="0s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="320" cy="168" r="94">
+        <animate attributeName="r" values="94;150" dur="3s" begin="1s" repeatCount="indefinite" />
+        <animate attributeName="stroke-opacity" values="0.35;0" dur="3s" begin="1s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="320" cy="168" r="94">
+        <animate attributeName="r" values="94;150" dur="3s" begin="2s" repeatCount="indefinite" />
+        <animate attributeName="stroke-opacity" values="0.35;0" dur="3s" begin="2s" repeatCount="indefinite" />
+      </circle>
+    </g>
+
+    <!-- reader plate -->
+    <circle cx="320" cy="168" r="94" fill="none" stroke="#262626" stroke-width="1" />
+    <circle cx="320" cy="168" r="86" fill="url(#fcGlass)" stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="1" />
+    <circle cx="320" cy="168" r="70" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="2 7">
+      <animateTransform attributeName="transform" type="rotate" from="0 320 168" to="360 320 168" dur="18s" repeatCount="indefinite" />
+    </circle>
+
+    <!-- scan line -->
+    <g clip-path="url(#fcReaderClip)">
+      <rect x="226" y="168" width="188" height="1" fill="url(#fcScan)">
+        <animate attributeName="y" values="82;254" dur="2s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" />
+      </rect>
+    </g>
+
+    <!-- the card, tapped onto the plate -->
+    <g transform="rotate(-14 312 164)">
+      <rect x="246" y="122" width="132" height="84" rx="10" fill="url(#fcCard)" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="1" />
+
+      <!-- contact chip -->
+      <g stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="1" fill="none">
+        <rect x="262" y="139" width="24" height="18" rx="3" />
+        <path d="M262 145h24M262 151h24M274 139v18" stroke-opacity="0.28" />
+      </g>
+
+      <text x="262" y="174" font-family="'IBM Plex Mono','JetBrains Mono','Courier New',monospace"
+        font-size="7.5" letter-spacing="1.8" fill="#FFFFFF" fill-opacity="0.75">ECHO ID</text>
+
+      <g fill="#FFFFFF" fill-opacity="0.22">
+        <rect x="262" y="182" width="66" height="2.5" rx="1.25" />
+        <rect x="262" y="190" width="44" height="2.5" rx="1.25" />
+      </g>
+    </g>
+
+    <!-- signal arcs leaving the card -->
+    <g transform="translate(378 106) rotate(-14)" stroke="#FFFFFF" stroke-width="2"
+      stroke-linecap="round" fill="none" opacity="0.9">
+      <path d="M0,-15 A18,18 0 0 1 0,15">
+        <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" begin="0s" repeatCount="indefinite" />
+      </path>
+      <path d="M0,-24 A28,28 0 0 1 0,24">
+        <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" begin="0.3s" repeatCount="indefinite" />
+      </path>
+      <path d="M0,-34 A40,40 0 0 1 0,34">
+        <animate attributeName="opacity" values="0.25;1;0.25" dur="1.8s" begin="0.6s" repeatCount="indefinite" />
+      </path>
+    </g>
+  </g>
+
+  <!-- Copy -->
+  <text x="320" y="344" text-anchor="middle"
+    font-family="'IBM Plex Mono','Noto Sans SC','JetBrains Mono','Courier New',monospace"
+    font-size="21" font-weight="700" letter-spacing="4.2" fill="#FFFFFF">TAP CARD TO BEGIN</text>
+  <text x="320" y="372" text-anchor="middle"
+    font-family="'IBM Plex Mono','Noto Sans SC','JetBrains Mono','Courier New',monospace"
+    font-size="9.5" letter-spacing="2" fill="#808080">PLACE YOUR ECHO ID CARD NEAR THE READER</text>
+</svg>

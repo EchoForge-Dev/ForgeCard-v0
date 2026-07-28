@@ -43,11 +43,14 @@ For deployment/setup on the Raspberry Pi, see [MAINTENANCE.md](MAINTENANCE.md). 
 ```
 forgecard-v0/
 
-├── frontend/             # Kiosk display (Next.js), styled per DESIGN.md
-│   └── src/
-│       ├── app/             # page.js — reads ?address= / ?status=, drives idle/scanning/result/error
-│       ├── components/      # IdleView, ScanningView, ResultView, ErrorView, etc.
-│       └── lib/             # echoid.js (client-side EchoID fetch), format.js, constants.js
+├── frontend/             # Kiosk display (Next.js), styled per DESIGN.md — Vercel root directory
+│   ├── src/
+│   │   ├── app/             # page.js — reads ?address= / ?status=, drives idle/scanning/result/error
+│   │   │                    #   icon.svg — favicon, auto-detected by the App Router
+│   │   ├── components/      # IdleView, ScanningView, ResultView, ErrorView, etc.
+│   │   └── lib/             # echoid.js (client-side EchoID fetch), format.js, constants.js
+│   └── public/
+│       └── tap-card.svg     # Standalone "tap card" key art (EchoForgeStyle, animated) — docs/press use
 ├── forgecard_kiosk.py    # Pi entry point: PN532 -> UID -> lookup -> navigate kiosk browser
 ├── card_store.py         # Local data layer: read/write/normalize UID bindings
 ├── bind_card.py          # CLI: bind a card UID to a Cardano stake address
