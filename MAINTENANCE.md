@@ -12,11 +12,11 @@ Raspberry Pi                                    Kiosk Display (Next.js)
 │                              │
 │                              ├── card_store.py   (local UID -> stake address)
 │                              │
-│                              └── subprocess: open/replace the kiosk
-│                                  browser at
+│                              └── subprocess: hand the URL to the
+│                                  already-running Chromium
 │                                  http://<frontend>/?address=<stake_address>
 │                                                       │
-└── Chromium --kiosk ──────────────────────────────────┘
+└── Chromium (v0: started by hand, F11) ───────────────┘
                                                          │
                                           frontend reads ?address=, calls the
                                           EchoID API itself, renders the card
@@ -37,9 +37,12 @@ Note that `?status=unbound` carries no UID and reveals nothing about the local b
 
 | Decision | Choice | Consequence to keep in mind |
 |---|---|---|
-| Browser control | Reopen a new process per tap | Old Chromium must be killed or the Pi runs out of memory; kill timing matters. First verify whether `chromium-browser <url>` reuses an already-running instance — if it does on this hardware, the kill logic becomes unnecessary. |
+| Browser control | v0: hand the URL to the already-running Chromium | **Verified on the Pi:** `chromium <url>` does not start a second process — it passes the URL to the running instance, which opens it in a **new tab** and brings that tab to the front. The screen updates, so v0 needs no process tracking and no kill logic. The cost is one accumulated tab and one cold page load per tap. |
+| Kiosk process management | Deferred to v1 | Autostart, `--kiosk` flags, tab/window cleanup, and crash recovery are v1 scope. In v0 Chromium is started by hand and fullscreened with F11. |
 | Unbound card | Navigate to `?status=unbound` | A tap on an unregistered card must never look like broken hardware. |
 | Frontend hosting | Vercel | The Pi runs zero Node processes. Network is already a hard dependency via the EchoID API. |
+
+The browser binary is **`chromium`**, not `chromium-browser`. Debian renamed both the package and the executable in Bookworm; Raspberry Pi OS inherited the change. Confirm with `ls /usr/bin | grep -i chrom` before hardcoding it anywhere.
 
 An earlier prototype ran a FastAPI WebSocket service on the Pi that resolved the EchoID profile itself and pushed it to the frontend. That coupled Python to the `accountType` decision, which is why the URL contract above replaced it. Those files have been moved out of this repo — there is no backend directory, no server process, and no WebSocket anywhere in the kiosk.
 
@@ -77,21 +80,25 @@ pip install -r requirements.txt        # requests -- needed everywhere
 pip install -r requirements-pi.txt     # adafruit PN532 drivers -- Pi only
 ```
 
-`requirements-pi.txt` will not install on macOS. That's expected: develop with `--keyboard` mode, which needs neither the drivers nor the hardware.
+`requirements-pi.txt` will not install on macOS. That's expected, and it does not block Mac-side work: URL building and UID normalization are pure functions, and `init_pn532()` imports `board` / `busio` / `adafruit_pn532` inside the function body precisely so the rest of the file still imports on a machine without the drivers. There is no keyboard/mock reader — the PN532 is the only read path, so the read loop itself can only be exercised on the Pi.
 
-Bind real cards before deploying (`card_store.json` is local and gitignored):
+Bind real cards before deploying — **`card_store.json` is local and gitignored, so it does not travel with a `git clone`.** A fresh checkout on the Pi has no bindings at all, and every tap will resolve to `?status=unbound`, which is indistinguishable from a UID normalization bug. Bind on the machine that will read the cards:
 
 ```bash
 python bind_card.py <UID> <stake_address> <display_name>
 ```
 
-Develop without hardware — the keyboard mode substitutes `input()` for the PN532 and exercises every other block:
+Use `bind_card.py` rather than editing the JSON by hand. It routes through `json.dump()`, which cannot emit invalid syntax, and through `std_uid()`, which normalizes the key. A hand-edited file that is missing a comma between entries fails at `json.load()` — loudly, with a line and column, but not until something calls `read_bindings()`. Validate with `python -m json.tool card_store.json`.
 
-```bash
-python forgecard_kiosk.py --keyboard
-```
+For step 3, see the browser control decision above: on this hardware `chromium <url>` hands the URL to the running instance, which opens a new tab and focuses it, so v0 needs no process management at all. The v1 upgrade is `--remote-debugging-port` + DevTools navigation, a drop-in swap behind `open_kiosk()`: it navigates the current tab instead of opening another one, removing both the tab accumulation and the multi-second cold start, at the cost of needing a "browser is gone, relaunch it" branch.
 
-For step 3, the settled decision is **reopen a new Chromium process per tap**. Before writing any process-management code, check whether `chromium-browser <url>` on this Pi hands the URL to an already-running instance rather than starting a second one — if it does, there is nothing to kill and the whole problem disappears. If it doesn't, the previous process must be terminated (track its `Popen` object rather than searching with `pgrep`) and allowed to exit before the replacement starts. Upgrading later to `--remote-debugging-port` + DevTools navigation is a drop-in swap behind `open_kiosk()`; it removes the window flash and the multi-second cold start, at the cost of needing a "browser is gone, relaunch it" branch.
+Suggested bring-up order on the Pi — each step adds exactly one new way to fail:
+
+1. `python test_lookup.py`, one entry per card. Proves the binding table before any hardware is involved.
+2. `chromium <url>` by hand with a known-good `?address=`. Proves the frontend and the URL shape.
+3. `init_pn532()` plus a single read, from a REPL or a throwaway script. Proves wiring and drivers. Do not run `forgecard_kiosk.py` yet — it will hit the unimplemented read loop.
+4. Chain one read through normalization, `lookup_uid()`, and URL building by hand. This is the whole v0 contract minus repetition; if it works here, the read loop only has to add debounce and error tolerance.
+5. Write the read loop.
 
 ### 3. Frontend
 
@@ -105,16 +112,24 @@ npm install
 npm run dev
 ```
 
-### 4. Kiosk mode (autostart)
+### 4. Kiosk mode
 
-Launch Chromium in kiosk mode pointed at the frontend's base URL (no `?address=` yet — that's what idle looks like):
+**v0: by hand.** Start Chromium pointed at the frontend's base URL (no `?address=` yet — that's what idle looks like) and press F11:
 
 ```bash
-chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
+chromium https://forgecard.echoforgellc.tech
+```
+
+F11 replaces the `--kiosk` flag's fullscreen behavior, but nothing else it did. A hand-fullscreened window still shows the mouse pointer, session-restore bubbles, and update prompts — acceptable while bringing the reader up, not acceptable in front of an audience. `unclutter` hides the idle pointer; the flags below suppress the rest.
+
+**v1: autostart and hardening.** Deferred deliberately (see Settled decisions). What it owns:
+
+```bash
+chromium --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
   --check-for-update-interval=31536000 https://forgecard.echoforgellc.tech
 ```
 
-To start on boot, either add a systemd service for your Pi-side Python script (pattern below — adjust `ExecStart` to whatever you end up calling it) or point `~/.config/lxsession/LXDE-pi/autostart` at it if using the Pi's default desktop:
+To start on boot, either add a systemd service for the Pi-side Python script (pattern below — adjust `ExecStart`, `User`, and `WorkingDirectory` to the real account; the Pi in use is `charles`, not the `pi` default) or point `~/.config/lxsession/LXDE-pi/autostart` at it if using the Pi's default desktop:
 
 ```ini
 # /etc/systemd/system/forgecard-reader.service
@@ -123,14 +138,16 @@ Description=ForgeCard PN532 reader -> kiosk browser
 After=network.target
 
 [Service]
-WorkingDirectory=/home/pi/forgecard-v0
-ExecStart=/home/pi/forgecard-v0/.venv/bin/python <your_script>.py
+WorkingDirectory=/home/charles/forgecard-v0
+ExecStart=/home/charles/forgecard-v0/.venv/bin/python forgecard_kiosk.py
 Restart=on-failure
-User=pi
+User=charles
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+Also v1's problem: tab accumulation. Every tap adds a tab to the running Chromium, which is invisible in fullscreen but real in memory. Either cap it via DevTools navigation (reusing the current tab) or measure how many taps the Pi tolerates and decide it is enough.
 
 ---
 
@@ -148,11 +165,15 @@ No backend environment variables — there's no server-side component to the kio
 
 ## Troubleshooting
 
-**Kiosk shows "TAP CARD TO BEGIN" and never changes.** The Pi script isn't reaching the browser with a new URL. Confirm it's actually running, and that whatever mechanism it uses to update the kiosk window (new process vs. remote-debugging navigation) is working — test manually by opening `http://<frontend>/?address=<a known-good stake address>` yourself.
+**`chromium-browser: command not found`.** The binary is `chromium` on Bookworm and later. Check with `ls /usr/bin | grep -i chrom`, and update `BROWSER_CMD` in `forgecard_kiosk.py` to match — a wrong value there surfaces as `FileNotFoundError` from `subprocess`, not as a browser problem.
+
+**Kiosk shows "TAP CARD TO BEGIN" and never changes.** The Pi script isn't reaching the browser with a new URL. Confirm it's actually running, and that whatever mechanism it uses to update the kiosk window is working — test manually by opening `http://<frontend>/?address=<a known-good stake address>` yourself.
+
+**`json.decoder.JSONDecodeError` from `read_bindings()`.** `card_store.json` was hand-edited into invalid syntax; the usual cause is a missing comma between two card entries (JSON requires separators between members and forbids a trailing one — the opposite of a Python dict). The decoder reports the line and column of the first problem only, so re-check the whole file with `python -m json.tool card_store.json`, or delete it and re-run `bind_card.py` once per card. Deleting is safe: `read_bindings()` returns `{}` when the file is absent.
 
 **Card taps produce "NO ECHOID PROFILE."** Either the bound stake address genuinely has no EchoID profile yet, or the address is malformed. Confirm with `python test_lookup.py`.
 
-**A card you know is bound produces "CARD NOT REGISTERED."** Almost always UID normalization, not a missing binding — `lookup_uid` fails silently by returning `None`, so a mis-formatted UID is indistinguishable from an unbound card. Print the normalized UID next to the `card_store.json` key and compare character by character; the usual culprits are a surviving `0x` prefix, a byte that lost its leading zero (`"7"` instead of `"07"`, which shifts everything after it), or lowercase hex.
+**A card you know is bound produces "CARD NOT REGISTERED."** Two causes, and they look identical because `lookup_uid` fails silently by returning `None`. First check that the table on *this* machine is not empty — `card_store.json` is gitignored, so a fresh clone on the Pi has no bindings even though the Mac does. If the table is populated, it's UID normalization: print the normalized UID next to the `card_store.json` key and compare character by character. The usual culprits are a surviving `0x` prefix, a byte that lost its leading zero (`"7"` instead of `"07"`, which shifts everything after it), or lowercase hex. Note that `std_uid()` strips separators and uppercases but does **not** zero-pad, so a short byte stays short all the way to the lookup.
 
 **A real user's name shows "UNNAMED" on the kiosk.** The EchoID API's `display_name` field is `null` for their profile — this is expected now that the frontend only ever sees what the EchoID API returns, not the friendly name recorded locally in `card_store.json` at bind time. See the README's v0.3 dev log entry.
 

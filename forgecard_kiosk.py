@@ -7,7 +7,7 @@ Python 永远只单向推 URL。不查 EchoID API、不决定 accountType、
 不负责复位屏幕 —— 前端自己会回 idle。
 
 已定决策：
-    一、浏览器控制 = 每次重开新进程
+    一、浏览器控制 = 复用实例
     二、未绑定卡   = ?status=unbound
     三、前端部署   = Vercel（forgecard.echoforgellc.tech）
     四、砍掉键盘模式 —— 只有 PN532 一条读卡路径，
@@ -23,8 +23,8 @@ Python 永远只单向推 URL。不查 EchoID API、不决定 accountType、
 进度：
     [x] 块 1  拼 URL（两个函数）
     [x] 块 2  开浏览器（最笨版能用；kill 逻辑 = 真机阶段补）
-    [ ] 块 3  UID 格式转换          ← 下一个写这个
-    [ ] 块 4  PN532 初始化（搬你 Week 2 的代码）
+    [x] 块 3  UID 格式转换          ← 下一个写这个
+    [x] 块 4  PN532 初始化（搬你 Week 2 的代码）
     [ ] 块 5  主循环 + 去抖          ← 最后写，只能在 Pi 上调
 
 看不懂的概念查 python_kiosk_sheet.md，开头有"块 → 节"的索引表。
@@ -98,20 +98,25 @@ def normalize_reader_uid(raw_uid):
     """把 PN532 吐出来的 UID 转成 card_store.json 里键的形态。"""
     # 砍掉键盘模式之后，输入只剩一种形态：PN532 给的 bytearray，
     # 用 for 遍历它，拿到的是整数（254, 138, 78, 7）。不用再考虑字符串输入。
-    # 目标形态： "FE8A4E07"
-    #
-    # 三个坑（共同点：错了不报错，只会让 lookup 返回 None，
-    # 看起来像"这张卡没绑定"，实际是 UID 拼错了）：
-    #   1. 0x 前缀 —— std_uid 只删空格/冒号/横线，不认识 0x
-    #   2. 补零   —— 0x07 必须变成 "07"，不是 "7"
-    #   3. 大小写 —— 'fe' 和 'FE' 是两个不同的字典键
+    std_uid = ""
+    for b in raw_uid:
+        # 目标形态： "FE8A4E07"
+        #
+        # 三个坑（共同点：错了不报错，只会让 lookup 返回 None，
+        # 看起来像"这张卡没绑定"，实际是 UID 拼错了）：
+        #   1. 0x 前缀 —— std_uid 只删空格/冒号/横线，不认识 0x
+        #   2. 补零   —— 0x07 必须变成 "07"，不是 "7"
+        #   3. 大小写 —— 'fe' 和 'FE' 是两个不同的字典键
+        std_uid += f"{b:02X}"
+    return std_uid
+
     # 一个写法平掉全部三个：f"{7:02X}" 会得到什么？手册 §1 拆解了这个写法。
     #
     # 你的设计决定：转换放在这里（读卡边界，脏数据进门就洗掉，
     # card_store 永远只认干净字符串），还是去扩展 card_store.std_uid
     # （它被 bind_card.py 和 test_lookup.py 共用，改它 = 改所有调用方的行为）。
     # 两种都对，但理由要说得出来。
-    raise NotImplementedError("块 3")
+    
 
 
 # ---------------------------------------------------------------------------
@@ -120,16 +125,20 @@ def normalize_reader_uid(raw_uid):
 
 def init_pn532():
     """初始化 I2C 和 PN532，返回 pn532 对象。整个程序只在启动时调一次。"""
-    # 把你 Week 2 亲手写过、在 Pi 上跑通过的初始化搬进来：
-    # I2C 总线 → PN532_I2C → SAM_configuration，最后 return pn532。
-    #
-    # 唯一的新做法：import board / busio / adafruit_pn532 写在这个函数里面，
-    # 不写在文件顶部。原因：这三个库 Mac 上装不上，放顶部的话
-    # 这个文件在 Mac 上连 import 都过不去，块 1/2/3 就全测不了了。
-    # 惯例 vs 前提，手册 §2。
-    #
-    # 想一个问题再动笔：为什么初始化不放进主循环、每轮做一次？
-    raise NotImplementedError("块 4")
+    import board
+    import busio
+    from adafruit_pn532.i2c import PN532_I2C
+
+    for attempt in range(3):
+        try:
+            i2c = busio.I2C(board.SCL, board.SDA)
+            pn532 = PN532_I2C(i2c, address=0x24, debug=False)
+            pn532.SAM_configuration()
+            return pn532
+        except Exception:
+            if attempt == 2:
+                raise
+            time.sleep(0.5)
 
 
 # ---------------------------------------------------------------------------

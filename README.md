@@ -15,9 +15,9 @@ PN532 Reader (Raspberry Pi, Python)         Kiosk Display (Next.js)
     ↓                                            ↑
 Card UID                                    reads ?address=... on load
     ↓                                            ↑
-lookup_uid(uid)  →  Cardano Stake Address   opens/replaces the kiosk browser at
+lookup_uid(uid)  →  Cardano Stake Address   hands the URL to the running Chromium
     ↓                                       http://<frontend>/?address=<stake_address>
-subprocess opens/reloads kiosk Chromium ────┘
+subprocess: chromium <url> ─────────────────┘
                                                   ↓
                                         frontend calls the EchoID API itself
                                         (data.profile / data.tierMeta) and renders
@@ -223,11 +223,7 @@ The kiosk display replaces manual UID input with a PN532 reader and a 1024x600 s
 
 **1. Pi-side Python** (`forgecard_kiosk.py`, in progress): reads a UID off the PN532, normalizes it to the `card_store.json` key format, resolves it with `lookup_uid(uid)`, and navigates the kiosk Chromium window to `/?address=<stake_address>` — or to `/?status=unbound` when the card has no binding. It never calls the EchoID API and never sees an `accountType`; that decision belongs to the frontend.
 
-Develop it without hardware — keyboard mode replaces the PN532 with `input()`:
-
-```bash
-python forgecard_kiosk.py --keyboard
-```
+There is no keyboard or mock reader — the PN532 is the only read path, so the read loop can only be run on the Pi. URL building and UID normalization are pure functions and remain testable on a Mac, because the hardware drivers are imported inside `init_pn532()` rather than at module level.
 
 **2. Frontend** (the kiosk display) — already implements its half of the contract:
 
@@ -240,7 +236,7 @@ npm run dev                        # or: npm run build && npm start
 
 On load it reads `?address=` (or `?status=`) from the URL, calls the EchoID API directly from the browser (`src/lib/echoid.js` — tries `accountType=individual` then falls back to `institutional`), and renders: idle ("tap card", bare URL) → verifying → EchoID profile card → auto-return to idle (clears the query param client-side). Append `?preview=ok|idle|scanning|unbound|no_profile|error` to preview a state without Python or a real address. You can also drive the real paths directly: `?address=<any stake address>` or `?status=unbound`.
 
-See [MAINTENANCE.md](MAINTENANCE.md) for Raspberry Pi kiosk setup (autostart, Chromium `--kiosk` flags).
+See [MAINTENANCE.md](MAINTENANCE.md) for Raspberry Pi setup and bring-up order. Kiosk process management — autostart, `--kiosk` flags, tab cleanup — is v1 scope; v0 starts Chromium by hand and fullscreens it with F11.
 
 ---
 
@@ -260,7 +256,7 @@ See [MAINTENANCE.md](MAINTENANCE.md) for Raspberry Pi kiosk setup (autostart, Ch
 
 # Next Milestone
 
-Rewrite the Pi-side Python to match the `?address=` contract: UID → `lookup_uid()` → build the kiosk URL → `subprocess` open/replace the Chromium kiosk window. Then wire a physical PN532 over I2C and deploy to run on boot.
+Finish the Pi-side read path: PN532 initialization, then the read loop with debounce. Everything before it — URL building, UID normalization, the binding table — is done and verified on the Pi with real cards. v0 is complete when a tap moves the screen to the right profile; autostart and kiosk hardening are v1.
 
 ---
 
@@ -310,9 +306,19 @@ After validation, the project will be deployed to Raspberry Pi for hardware inte
 - Added `forgecard_kiosk.py` as a comment-only scaffold with a `--keyboard` mode, so the Pi-side logic can be written and run before any hardware arrives
 - Removed `backend/` entirely: the WebSocket prototype was moved out of the repo, leaving a directory named after a component that no longer exists. Its two requirements files moved to the repo root, dropping `fastapi` / `uvicorn` / `pydantic` — nothing imports them now that there is no server, and `requests` is the only remaining core dependency
 
+### v0.3.2 — Pi bring-up: scope split and hardware findings
+- **Kiosk process management deferred to v1.** v0 stops at "a tap navigates the screen." Autostart, `--kiosk` flags, tab cleanup, and crash recovery are v1 scope; v0 starts Chromium by hand and fullscreens it with F11. F11 substitutes for the `--kiosk` flag's fullscreen only — the mouse pointer, session-restore bubbles, and update prompts that the flags suppress are all still visible, which is fine for bring-up and not fine in front of an audience
+- **Keyboard mode removed.** The PN532 is the only read path, so the read loop can only be developed on the Pi. The cost was accepted deliberately: a mock reader exercises the loop's shape but not the thing that actually breaks. Blocks 1-3 stay Mac-testable because `init_pn532()` imports the hardware drivers inside the function body instead of at module level
+- **Verified on real hardware: `chromium <url>` does not start a second process.** It hands the URL to the already-running instance, which opens a new tab and brings it to the front. The screen updates, so the kill logic sketched in v0.3.1 turns out to be unnecessary for v0 — the open question recorded there is now closed. The cost is one accumulated tab and one cold page load per tap, both v1's problem
+- The Chromium binary is `chromium`, not `chromium-browser`; Debian renamed it in Bookworm and Raspberry Pi OS inherited the change. `BROWSER_CMD` was written against the old name and would have failed as a `subprocess` `FileNotFoundError`
+- Blocks 1-3 of `forgecard_kiosk.py` complete (URL building, browser invocation, UID normalization). Blocks 4-5 (PN532 init, read loop + debounce) remain, and are Pi-only
+- Three physical cards bound and read on the Pi. Two failure modes found in the process, both now in MAINTENANCE.md troubleshooting: `card_store.json` is gitignored and does not survive a `git clone`, so a fresh Pi checkout reports every card as unbound; and hand-editing that file instead of using `bind_card.py` produced a missing comma and a `JSONDecodeError`
+- One of the real card UIDs ends in `0x07`, so the zero-padding trap the normalization comments warn about is live in the actual data rather than hypothetical
+
 ### Up Next
-- Implement `forgecard_kiosk.py` (UID normalization, debounce, subprocess navigation)
-- Wire a physical PN532 to a Raspberry Pi over I2C
+- Implement blocks 4-5 of `forgecard_kiosk.py` (PN532 init, read loop, debounce) — on the Pi
+- Test the unbound path, which needs a card that is deliberately *not* bound
+- Measure how many taps the Pi tolerates before tab accumulation degrades it
 - Point `forgecard.echoforgellc.tech` at the deployed frontend
 - Decide whether EchoID profiles should get a display-name fallback, and if so where that belongs
 
