@@ -335,7 +335,6 @@ Recorded so a later reader sees a decision here rather than an oversight.
 ### Up Next
 - Test the read loop's fault tolerance: pull the reader's wiring or drop the network mid-run and confirm the loop survives instead of exiting
 - Measure how many taps the Pi tolerates before tab accumulation degrades it
-- Move UID prefix normalization into `std_uid()` so `bind_card()` and `lookup_uid()` cannot disagree
 - Decide whether EchoID profiles should get a display-name fallback, and if so where that belongs
 
 ---
