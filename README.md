@@ -234,7 +234,7 @@ cp .env.local.example .env.local   # NEXT_PUBLIC_ECHOID_API_URL, defaults to pro
 npm run dev                        # or: npm run build && npm start
 ```
 
-On load it reads `?address=` (or `?status=`) from the URL, calls the EchoID API directly from the browser (`src/lib/echoid.js` — tries `accountType=individual` then falls back to `institutional`), and renders: idle ("tap card", bare URL) → verifying → EchoID profile card → auto-return to idle (clears the query param client-side). Append `?preview=ok|idle|scanning|unbound|no_profile|error` to preview a state without Python or a real address. You can also drive the real paths directly: `?address=<any stake address>` or `?status=unbound`.
+On load it reads `?address=` (or `?status=`) from the URL, calls the EchoID API directly from the browser (`src/lib/echoid.js` — tries `accountType=individual` then falls back to `institutional`), and renders: idle ("tap card", bare URL) → verifying → EchoID profile card → auto-return to idle (clears the query param client-side). A URL that already carries `?address=` or `?status=` starts at verifying rather than rendering idle first, and verifying is held for at least `MIN_SCANNING_MS` (`src/lib/constants.js`) so a fast answer cannot flash past — turn that one constant if the pacing feels wrong. Append `?preview=ok|idle|scanning|unbound|no_profile|error` to preview a state without Python or a real address. You can also drive the real paths directly: `?address=<any stake address>` or `?status=unbound`.
 
 See [MAINTENANCE.md](MAINTENANCE.md) for Raspberry Pi setup and bring-up order. Kiosk process management — autostart, `--kiosk` flags, tab cleanup — is v1 scope; v0 starts Chromium by hand and fullscreens it with F11.
 
@@ -315,11 +315,27 @@ After validation, the project will be deployed to Raspberry Pi for hardware inte
 - Three physical cards bound and read on the Pi. Two failure modes found in the process, both now in MAINTENANCE.md troubleshooting: `card_store.json` is gitignored and does not survive a `git clone`, so a fresh Pi checkout reports every card as unbound; and hand-editing that file instead of using `bind_card.py` produced a missing comma and a `JSONDecodeError`
 - One of the real card UIDs ends in `0x07`, so the zero-padding trap the normalization comments warn about is live in the actual data rather than hypothetical
 
+### v0.3.3 — Read loop live, kiosk pacing fixed
+- **The full chain runs on the Pi.** Tap a bound card and the screen lands on that stake address's EchoID profile; tap an unbound one and it lands on "Card Not Registered". Blocks 4-5 of `forgecard_kiosk.py` are written, so every block of the Pi-side script now exists
+- **Three view changes in under a second turned out not to be a bug.** A tap on a bound card visibly changed the screen three times, while unbound cards looked fine. It is the frontend's own state machine — a page loaded with `?address=` rendered idle for one frame, switched to `scanning`, then to `result` as soon as EchoID answered, and `AnimatePresence` never finished a 0.5s transition before the next one started. The unbound path skips both the idle frame and the network request, which is why only bound cards showed it
+- Fixed in the frontend, not in Python: `page.js` now initializes `viewState` from the URL, so a page loaded with `?address=` or `?status=unbound` never renders idle first, and `MIN_SCANNING_MS` (`lib/constants.js`) holds "Verifying" on screen for a floor duration even when the answer is already known. Both paths now have the same rhythm — the unbound path gains a visible acknowledgement of the tap instead of snapping straight to the error
+- The Python-side deduction that ruled out a debounce fault is worth keeping: a card recognized as *bound* has necessarily matched a `card_store.json` key exactly, so its UID is stable, so `last_uid == uid` holds, so the debounce cannot fire twice inside its window. When a symptom appears on one card and not another, check what differs about the *path*, not the reader
+
+### Deferred to V1 — explicit decision, not drift
+Recorded so a later reader sees a decision here rather than an oversight.
+
+- **Power-loss-safe writes.** `card_store.json` is rewritten in place with no atomic-replace or fsync; a power cut mid-write can truncate the binding table.
+- **Network failure handling (T4/T5).** The kiosk's behavior when the EchoID API is unreachable or slow is untested beyond the frontend's existing catch-all error state.
+- **Kiosk autostart.** V0 drops automatic kiosk launch in favor of starting Chromium by hand and pressing F11.
+  * *Rationale:* V0's only deliverable is a YouTube demo video, and the two approaches are indistinguishable on video.
+  * *Trigger to restore:* the moment the device has to run unattended — a live on-site demo, recovery after a power cut, or real users tapping it — kiosk mode re-enters scope.
+  * *Implementation note:* Wayland compositor autostart is a simpler path than SSH plus a systemd unit. V1 should take that route and replace the debounce at the same time.
+- **Debounce semantics.** `last_seen` is refreshed only when a tap fires, so a card left resting on the reader re-triggers every `DEBOUNCE_SECONDS`. Accepted for V0, where the demo is run at home by the person holding the card. V1 should switch to edge triggering — fire on the transition from "no card" to "card present" — so one tap is one trigger regardless of how long the card rests.
+
 ### Up Next
-- Implement blocks 4-5 of `forgecard_kiosk.py` (PN532 init, read loop, debounce) — on the Pi
-- Test the unbound path, which needs a card that is deliberately *not* bound
+- Test the read loop's fault tolerance: pull the reader's wiring or drop the network mid-run and confirm the loop survives instead of exiting
 - Measure how many taps the Pi tolerates before tab accumulation degrades it
-- Point `forgecard.echoforgellc.tech` at the deployed frontend
+- Move UID prefix normalization into `std_uid()` so `bind_card()` and `lookup_uid()` cannot disagree
 - Decide whether EchoID profiles should get a display-name fallback, and if so where that belongs
 
 ---

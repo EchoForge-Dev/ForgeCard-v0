@@ -54,5 +54,5 @@ def bind_card(uid, stake_address, display_name):
 def lookup_uid(uid):
     uid=std_uid(uid)
     bindings=read_bindings()
-    return bindings.get(uid)
+
 

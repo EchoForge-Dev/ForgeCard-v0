@@ -129,7 +129,7 @@ chromium --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bub
   --check-for-update-interval=31536000 https://forgecard.echoforgellc.tech
 ```
 
-To start on boot, either add a systemd service for the Pi-side Python script (pattern below — adjust `ExecStart`, `User`, and `WorkingDirectory` to the real account; the Pi in use is `charles`, not the `pi` default) or point `~/.config/lxsession/LXDE-pi/autostart` at it if using the Pi's default desktop:
+For starting on boot, **Wayland compositor autostart is the preferred route** — it is a simpler path than SSH plus a systemd unit, and V1 should take it while replacing the debounce at the same time (see the README's "Deferred to V1"). The systemd pattern below is kept as the fallback for a headless or non-Wayland setup; adjust `ExecStart`, `User`, and `WorkingDirectory` to the real account, as the Pi in use is `charles`, not the `pi` default. On the Pi's older LXDE desktop the equivalent hook is `~/.config/lxsession/LXDE-pi/autostart`.
 
 ```ini
 # /etc/systemd/system/forgecard-reader.service

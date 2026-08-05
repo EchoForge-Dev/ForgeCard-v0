@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import KioskFrame from "@/components/KioskFrame";
 import { fetchEchoIdProfile, normalizeProfile } from "@/lib/echoid";
-import { RESULT_AUTO_RETURN_MS, ERROR_AUTO_RETURN_MS } from "@/lib/constants";
+import { RESULT_AUTO_RETURN_MS, ERROR_AUTO_RETURN_MS, MIN_SCANNING_MS } from "@/lib/constants";
 
 const IDLE_STATE = { kind: "idle" };
 
@@ -51,7 +51,13 @@ function KioskPage() {
   const status = searchParams.get("status");
   const preview = previewKey ? PREVIEW_STATES[previewKey] : null;
 
-  const [viewState, setViewState] = useState(IDLE_STATE);
+  // Start in the state the URL already implies. Initializing to idle and
+  // correcting inside the effect renders IdleView for one frame first, which
+  // AnimatePresence turns into a visible flash before "Verifying" appears —
+  // the first of the three jumps a tap used to produce.
+  const [viewState, setViewState] = useState(() =>
+    address || status === "unbound" ? { kind: "scanning", address } : IDLE_STATE
+  );
   const timerRef = useRef(null);
   const requestIdRef = useRef(0);
 
@@ -61,42 +67,55 @@ function KioskPage() {
 
     const returnToIdle = () => router.replace("/");
 
-    // `status` wins over `address`: the Pi sends one or the other, never both.
-    if (status === "unbound") {
-      // Invalidate any in-flight lookup so its late response can't overwrite this.
+    // No parameters at all — this is idle, including the auto-return that
+    // clears them. Bump the request id so a lookup still in flight from the
+    // previous tap can't paint over the idle screen when it lands.
+    if (!address && status !== "unbound") {
       requestIdRef.current += 1;
-      setViewState({ kind: "error", status: "unbound" });
-      timerRef.current = setTimeout(returnToIdle, ERROR_AUTO_RETURN_MS);
-      return;
-    }
-
-    if (!address) {
       setViewState(IDLE_STATE);
       return;
     }
 
     const requestId = ++requestIdRef.current;
     const isStale = () => requestIdRef.current !== requestId;
+    const scanningSince = Date.now();
 
     setViewState({ kind: "scanning", address });
 
+    // Hold "Verifying" for MIN_SCANNING_MS even when the answer is already in
+    // hand, so every tap has the same rhythm regardless of how fast (or
+    // whether) the EchoID request resolved.
+    const settle = (next, autoReturnMs) => {
+      if (isStale()) return;
+      const remaining = Math.max(0, MIN_SCANNING_MS - (Date.now() - scanningSince));
+      timerRef.current = setTimeout(() => {
+        if (isStale()) return;
+        setViewState(next);
+        timerRef.current = setTimeout(returnToIdle, autoReturnMs);
+      }, remaining);
+    };
+
+    // `status` wins over `address`: the Pi sends one or the other, never both.
+    // This path makes no request, so without the floor it would snap straight
+    // to "Card Not Registered" with no visible acknowledgement of the tap.
+    if (status === "unbound") {
+      settle({ kind: "error", status: "unbound" }, ERROR_AUTO_RETURN_MS);
+      return;
+    }
+
     fetchEchoIdProfile(address)
       .then((raw) => {
-        if (isStale()) return;
         if (!raw) {
-          setViewState({ kind: "error", status: "no_profile", address });
+          settle({ kind: "error", status: "no_profile", address }, ERROR_AUTO_RETURN_MS);
         } else {
-          setViewState({ kind: "result", profile: normalizeProfile(address, raw) });
+          settle(
+            { kind: "result", profile: normalizeProfile(address, raw) },
+            RESULT_AUTO_RETURN_MS
+          );
         }
-        timerRef.current = setTimeout(
-          returnToIdle,
-          raw ? RESULT_AUTO_RETURN_MS : ERROR_AUTO_RETURN_MS
-        );
       })
       .catch(() => {
-        if (isStale()) return;
-        setViewState({ kind: "error", status: "error", address });
-        timerRef.current = setTimeout(returnToIdle, ERROR_AUTO_RETURN_MS);
+        settle({ kind: "error", status: "error", address }, ERROR_AUTO_RETURN_MS);
       });
   }, [address, status, preview, router]);
 
