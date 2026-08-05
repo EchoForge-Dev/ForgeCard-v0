@@ -199,3 +199,18 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+   ---------------------------------------------------------------------
+
+   NOTICE: Brand assets excluded from this License
+
+   The "ForgeCard" name and logo/icon assets (including but not limited
+   to frontend/src/app/icon.svg, frontend/public/tap-card.svg, and any
+   other files identifying the ForgeCard brand) are NOT covered by the
+   License above and are not made available under its terms.
+
+   You may fork, modify, and redistribute the source code under the
+   License, but you may not use the ForgeCard name or logo to identify
+   your fork or any derivative product, or in any way that implies
+   affiliation with or endorsement by Charles Tao, without prior written
+   permission.
