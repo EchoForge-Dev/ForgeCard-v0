@@ -1,7 +1,7 @@
 import requests
 
 # 定义 BASE_URL
-BASE_URL = "https://api-id.echoforgellc.tech"
+BASE_URL = "https://api-id.echoforgeef.com"
 
 # 写 fetch_profile(stake_address)
 def fetch_profile(stake_address, account_type="individual"):

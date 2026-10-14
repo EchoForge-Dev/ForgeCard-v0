@@ -8,7 +8,7 @@
  * (which accountType to query) is the frontend's job, not Python's.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_ECHOID_API_URL || "https://api-id.echoforgellc.tech";
+const BASE_URL = process.env.NEXT_PUBLIC_ECHOID_API_URL || "https://api-id.echoforgeef.com";
 
 async function fetchProfileAs(address, accountType) {
   const url = `${BASE_URL}/api/echoid/profile/${encodeURIComponent(address)}?accountType=${accountType}`;

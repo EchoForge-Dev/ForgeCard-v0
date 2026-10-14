@@ -20,6 +20,7 @@ Allowed in the hardware layer:
 
 - reviewing code Charles wrote: point out problems precisely ("the read loop doesn't handle a timeout") — but do not output the corrected code
 - explaining concepts, naming functions / APIs, linking documentation
+- changing a configuration value in these files, such as a hostname or URL. That is not writing code: the red line protects the practice of writing the logic, not the constants it reads (Charles, 2026-10-14)
 
 ## Explicit exceptions
 

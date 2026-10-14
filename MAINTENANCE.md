@@ -157,7 +157,7 @@ Also v1's problem: tab accumulation. Every tap adds a tab to the running Chromiu
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_ECHOID_API_URL` | `https://api-id.echoforgellc.tech` | EchoID profile API the browser calls directly once it has `?address=` |
+| `NEXT_PUBLIC_ECHOID_API_URL` | `https://api-id.echoforgeef.com` | EchoID profile API the browser calls directly once it has `?address=` |
 
 No backend environment variables — there's no server-side component to the kiosk anymore beyond your Pi-side script, which reads `card_store.json` directly.
 
@@ -177,7 +177,7 @@ No backend environment variables — there's no server-side component to the kio
 
 **A real user's name shows "UNNAMED" on the kiosk.** The EchoID API's `display_name` field is `null` for their profile — this is expected now that the frontend only ever sees what the EchoID API returns, not the friendly name recorded locally in `card_store.json` at bind time. See the README's v0.3 dev log entry.
 
-**Browser console shows a CORS error calling `api-id.echoforgellc.tech`.** Unlikely — the API reflects `Access-Control-Allow-Origin` for whatever origin makes the request, verified against both `localhost:3000` and `forgecard.echoforgellc.tech`. If it does happen, it means the API's CORS policy changed; check with whoever owns the EchoID API before working around it client-side.
+**Browser console shows a CORS error calling `api-id.echoforgeef.com`.** Unlikely — the API reflects `Access-Control-Allow-Origin` for whatever origin makes the request, verified against both `localhost:3000` and the kiosk host (then `forgecard.echoforgellc.tech`, now `forgecard.echoforgeef.com`). If it does happen, it means the API's CORS policy changed; check with whoever owns the EchoID API before working around it client-side.
 
 **Same card scanned twice in a row does something weird.** Debouncing repeat reads of the same UID is `forgecard_kiosk.py`'s responsibility — a card resting on the reader fires continuously. The earlier prototype used a 5-second window; treat that as a starting point, not a rule, and tune it against a real card.
 
