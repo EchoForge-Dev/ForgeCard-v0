@@ -2,7 +2,7 @@
 
 A local-first NFC identity kiosk for the EchoForge ecosystem — part of the Echo Family.
 
-**Live kiosk display:** `forgecard.echoforgellc.tech`
+**Live kiosk display:** `forgecard.echoforgeef.com`
 
 ---
 
