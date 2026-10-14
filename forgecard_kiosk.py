@@ -9,7 +9,7 @@ Python 永远只单向推 URL。不查 EchoID API、不决定 accountType、
 已定决策：
     一、浏览器控制 = 复用实例
     二、未绑定卡   = ?status=unbound
-    三、前端部署   = Vercel（forgecard.echoforgellc.tech）
+    三、前端部署   = Vercel（forgecard.echoforgeef.com）
     四、砍掉键盘模式 —— 只有 PN532 一条读卡路径，
         代价：主循环只能在 Pi 上调（值得记一行 dev log）
 
@@ -41,7 +41,7 @@ from card_store import lookup_uid
 # ---------------------------------------------------------------------------
 
 # 决策三：前端在 Vercel。本地调前端时临时改成 http://localhost:3000
-FRONTEND_BASE = "https://forgecard.echoforgellc.tech"
+FRONTEND_BASE = "https://forgecard.echoforgeef.com"
 
 # Pi OS 上是chromium。
 BROWSER_CMD = ["chromium-browser", "chromium", "google-chrome", "google-chrome-stable"]
