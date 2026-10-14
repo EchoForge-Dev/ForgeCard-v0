@@ -102,7 +102,7 @@ Suggested bring-up order on the Pi — each step adds exactly one new way to fai
 
 ### 3. Frontend
 
-Settled decision: the frontend is deployed to **Vercel** at `https://forgecard.echoforgellc.tech`, and the Pi runs no Node process at all. Point the kiosk browser at that URL.
+Settled decision: the frontend is deployed to **Vercel** at `https://forgecard.echoforgeef.com`, and the Pi runs no Node process at all. Point the kiosk browser at that URL.
 
 For local frontend development only (not on the Pi):
 
@@ -117,7 +117,7 @@ npm run dev
 **v0: by hand.** Start Chromium pointed at the frontend's base URL (no `?address=` yet — that's what idle looks like) and press F11:
 
 ```bash
-chromium https://forgecard.echoforgellc.tech
+chromium https://forgecard.echoforgeef.com
 ```
 
 F11 replaces the `--kiosk` flag's fullscreen behavior, but nothing else it did. A hand-fullscreened window still shows the mouse pointer, session-restore bubbles, and update prompts — acceptable while bringing the reader up, not acceptable in front of an audience. `unclutter` hides the idle pointer; the flags below suppress the rest.
@@ -126,7 +126,7 @@ F11 replaces the `--kiosk` flag's fullscreen behavior, but nothing else it did. 
 
 ```bash
 chromium --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble \
-  --check-for-update-interval=31536000 https://forgecard.echoforgellc.tech
+  --check-for-update-interval=31536000 https://forgecard.echoforgeef.com
 ```
 
 For starting on boot, **Wayland compositor autostart is the preferred route** — it is a simpler path than SSH plus a systemd unit, and V1 should take it while replacing the debounce at the same time (see the README's "Deferred to V1"). The systemd pattern below is kept as the fallback for a headless or non-Wayland setup; adjust `ExecStart`, `User`, and `WorkingDirectory` to the real account, as the Pi in use is `charles`, not the `pi` default. On the Pi's older LXDE desktop the equivalent hook is `~/.config/lxsession/LXDE-pi/autostart`.
@@ -185,7 +185,7 @@ No backend environment variables — there's no server-side component to the kio
 
 ## Deploying Frontend Updates
 
-The frontend is a standard Next.js app — deploy it to Vercel like other EchoForge products (see root `DESIGN.md` -> Technical Architecture) and point `forgecard.echoforgellc.tech` at it. Rebuilding the frontend does not require touching the Pi at all, since it talks to the EchoID API directly and has no backend dependency.
+The frontend is a standard Next.js app — deploy it to Vercel like other EchoForge products (see root `DESIGN.md` -> Technical Architecture) and point `forgecard.echoforgeef.com` at it. Rebuilding the frontend does not require touching the Pi at all, since it talks to the EchoID API directly and has no backend dependency.
 
 **Vercel Root Directory must be `frontend`.** This repo's root holds the Pi-side Python, not the Next.js app — there is no `package.json` at the top level. If Root Directory is left at the repo root, Vercel's framework detection finds nothing, falls back to the "Other" preset, and the build fails with:
 
